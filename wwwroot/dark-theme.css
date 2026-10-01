@@ -1,0 +1,230 @@
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    color: #e1e9e3;
+    background: #111a15;
+}
+
+:root[data-theme="dark"] body,
+:root[data-theme="dark"] .app-shell {
+    background: #111a15;
+    color: #e1e9e3;
+}
+
+:root[data-theme="dark"] .sidebar {
+    border-color: #253a2f;
+    background: #101813;
+}
+
+:root[data-theme="dark"] .side-link {
+    color: #bdc9c1;
+}
+
+:root[data-theme="dark"] .side-link:hover,
+:root[data-theme="dark"] .side-link.active {
+    background: #263d31;
+    color: #f2f6f2;
+}
+
+:root[data-theme="dark"] .topbar {
+    border-color: #29382f;
+    background: #18221c;
+}
+
+:root[data-theme="dark"] .topbar-context,
+:root[data-theme="dark"] .topbar-currency,
+:root[data-theme="dark"] .theme-toggle {
+    color: #bac8bf;
+}
+
+:root[data-theme="dark"] .dashboard-heading h1,
+:root[data-theme="dark"] .page-heading h1,
+:root[data-theme="dark"] .chart-heading h2,
+:root[data-theme="dark"] .table-caption h2,
+:root[data-theme="dark"] .dialog-header h2,
+:root[data-theme="dark"] .confirm-panel h2,
+:root[data-theme="dark"] .empty-state h3 {
+    color: #e5ede7;
+}
+
+:root[data-theme="dark"] .dashboard-description,
+:root[data-theme="dark"] .page-description,
+:root[data-theme="dark"] .kpi-label,
+:root[data-theme="dark"] .table-caption p,
+:root[data-theme="dark"] .page-size-label,
+:root[data-theme="dark"] .chart-legend span,
+:root[data-theme="dark"] .category-name,
+:root[data-theme="dark"] .empty-state p,
+:root[data-theme="dark"] .confirm-panel p {
+    color: #a8b7ad;
+}
+
+:root[data-theme="dark"] .period-toolbar,
+:root[data-theme="dark"] .list-toolbar,
+:root[data-theme="dark"] .table-scroll,
+:root[data-theme="dark"] .empty-state {
+    border-color: #304137;
+}
+
+:root[data-theme="dark"] .period-control label,
+:root[data-theme="dark"] .filter-field label,
+:root[data-theme="dark"] .form-field label {
+    color: #bac8bf;
+}
+
+:root[data-theme="dark"] .period-control .control,
+:root[data-theme="dark"] .control,
+:root[data-theme="dark"] .dialog-panel {
+    border-color: #394b40;
+    background-color: #1b2820;
+    color: #e1e9e3;
+}
+
+:root[data-theme="dark"] select option {
+    background: #1b2820;
+    color: #e1e9e3;
+}
+
+:root[data-theme="dark"] .selected-period,
+:root[data-theme="dark"] .comparison-caption,
+:root[data-theme="dark"] .pagination-summary,
+:root[data-theme="dark"] .chart-footnote,
+:root[data-theme="dark"] .chart-unit,
+:root[data-theme="dark"] .category-percent,
+:root[data-theme="dark"] .date-cell {
+    color: #9caca1 !important;
+}
+
+:root[data-theme="dark"] .kpi-card,
+:root[data-theme="dark"] .chart-panel {
+    border-color: #314238;
+    background: #1a261f;
+    box-shadow: 0 3px 14px rgb(0 0 0 / 14%);
+}
+
+:root[data-theme="dark"] .kpi-value,
+:root[data-theme="dark"] .category-total,
+:root[data-theme="dark"] .page-indicator,
+:root[data-theme="dark"] .transactions-table td {
+    color: #e0e9e2;
+}
+
+:root[data-theme="dark"] .kpi-period,
+:root[data-theme="dark"] .chart-empty,
+:root[data-theme="dark"] .bar-axis-labels,
+:root[data-theme="dark"] .month-axis-labels,
+:root[data-theme="dark"] .cashflow-axis-labels {
+    color: #a2b0a7;
+}
+
+:root[data-theme="dark"] .chart-gridline {
+    stroke: #35463b;
+}
+
+:root[data-theme="dark"] .axis-label,
+:root[data-theme="dark"] .month-label {
+    fill: #a2b0a7;
+}
+
+:root[data-theme="dark"] .zero-line {
+    stroke: #87988d;
+}
+
+:root[data-theme="dark"] .cashflow-line {
+    stroke: #70c293;
+}
+
+:root[data-theme="dark"] .cashflow-endpoint {
+    fill: #1a261f;
+    stroke: #70c293;
+}
+
+:root[data-theme="dark"] .donut-hole {
+    background: #1a261f;
+}
+
+:root[data-theme="dark"] .donut-hole span {
+    color: #a8b7ad;
+}
+
+:root[data-theme="dark"] .donut-hole strong {
+    color: #e1e9e3;
+}
+
+:root[data-theme="dark"] .category-label,
+:root[data-theme="dark"] .page-button,
+:root[data-theme="dark"] .secondary-button {
+    border-color: #3a4c40;
+    background: #222f27;
+    color: #d2ddd5;
+}
+
+:root[data-theme="dark"] .transactions-table th {
+    border-color: #34443a;
+    color: #aab8af;
+}
+
+:root[data-theme="dark"] .transactions-table td {
+    border-color: #2c3b32;
+}
+
+:root[data-theme="dark"] .transactions-table tbody tr:hover,
+:root[data-theme="dark"] .icon-button:hover,
+:root[data-theme="dark"] .secondary-button:hover:not(:disabled) {
+    border-color: #3b5546;
+    background: #24372b;
+}
+
+:root[data-theme="dark"] .icon-button {
+    color: #b6c4bb;
+}
+
+:root[data-theme="dark"] .comparison-notice {
+    border-color: #665634;
+    background: #302a1d;
+    color: #ddc98e;
+}
+
+:root[data-theme="dark"] .error-notice,
+:root[data-theme="dark"] .notice-error {
+    border-color: #70433f;
+    background: #352321;
+    color: #f0b4aa;
+}
+
+:root[data-theme="dark"] .empty-mark {
+    background: #24392c;
+    color: #88c6a0;
+}
+
+:root[data-theme="dark"] .dashboard-action {
+    border-color: #405449;
+    color: #9bc9ab;
+}
+
+:root[data-theme="dark"] .dashboard-action:hover {
+    border-color: #5b7c66;
+    background: #25382b;
+}
+
+:root[data-theme="dark"] .dialog-backdrop {
+    background: rgb(0 0 0 / 68%);
+}
+
+:root[data-theme="dark"] .confirm-symbol {
+    background: #422925;
+    color: #f09a8f;
+}
+
+:root[data-theme="dark"] .confirm-panel p strong {
+    color: #e1e9e3;
+}
+
+:root[data-theme="dark"] .page-indicator span {
+    color: #8e9d92;
+}
+
+:root[data-theme="dark"] #blazor-error-ui {
+    border-top: 1px solid #806c39;
+    background: #332d1d;
+    color: #f2df9f;
+}

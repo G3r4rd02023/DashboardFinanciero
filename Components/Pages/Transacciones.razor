@@ -1,0 +1,402 @@
+@page "/transacciones"
+@inject ITransaccionesService TransaccionesService
+
+<PageTitle>Transacciones | Finanzas</PageTitle>
+
+<section class="transactions-page">
+    <header class="page-heading">
+        <div>
+            <p class="eyebrow">REGISTRO FINANCIERO</p>
+            <h1>Transacciones</h1>
+            <p class="page-description">Controla tus ingresos y egresos, movimiento a movimiento.</p>
+        </div>
+        <button class="primary-button" type="button" @onclick="AbrirNueva">
+            <span aria-hidden="true">＋</span>
+            Nueva transacción
+        </button>
+    </header>
+
+    <section class="list-toolbar" aria-label="Filtros de transacciones">
+        <div class="filter-field filter-date">
+            <label for="fecha-desde">Desde</label>
+            <InputDate id="fecha-desde" class="control" @bind-Value="Filtro.FechaDesde" @bind-Value:after="AplicarFiltros" />
+        </div>
+        <div class="filter-field filter-date">
+            <label for="fecha-hasta">Hasta</label>
+            <InputDate id="fecha-hasta" class="control" @bind-Value="Filtro.FechaHasta" @bind-Value:after="AplicarFiltros" />
+        </div>
+        <div class="filter-field filter-select">
+            <label for="filtro-tipo">Tipo</label>
+            <InputSelect id="filtro-tipo" class="control" @bind-Value="Filtro.Tipo" @bind-Value:after="AplicarFiltros">
+                <option value="">Todos los tipos</option>
+                <option value="@TipoTransaccion.Ingreso">Ingreso</option>
+                <option value="@TipoTransaccion.Egreso">Egreso</option>
+            </InputSelect>
+        </div>
+        <div class="filter-field filter-select">
+            <label for="filtro-categoria">Categoría</label>
+            <InputSelect id="filtro-categoria" class="control" @bind-Value="Filtro.CategoriaId" @bind-Value:after="AplicarFiltros">
+                <option value="">Todas las categorías</option>
+                @foreach (var categoria in Categorias)
+                {
+                    <option value="@categoria.Id">@categoria.Nombre</option>
+                }
+            </InputSelect>
+        </div>
+        <button class="text-button clear-filters" type="button" @onclick="LimpiarFiltros">Limpiar filtros</button>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorCarga))
+    {
+        <div class="notice notice-error" role="alert">@ErrorCarga</div>
+    }
+
+    <section class="table-section" aria-label="Listado de transacciones">
+        <div class="table-caption">
+            <div>
+                <h2>Movimientos</h2>
+                <p>@(Cargando ? "Actualizando listado…" : $"{Resultado.Total:N0} registros encontrados")</p>
+            </div>
+            <span class="page-size-label">10 por página</span>
+        </div>
+
+        @if (Cargando && Resultado.Total == 0)
+        {
+            <div class="empty-state" role="status">Cargando movimientos…</div>
+        }
+        else if (Resultado.Items.Count == 0)
+        {
+            <div class="empty-state">
+                <span class="empty-mark" aria-hidden="true">↗</span>
+                <h3>No hay movimientos para mostrar</h3>
+                <p>Prueba con otros filtros o registra tu primera transacción.</p>
+                <button class="secondary-button" type="button" @onclick="AbrirNueva">Crear transacción</button>
+            </div>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="transactions-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Fecha</th>
+                            <th scope="col">Descripción</th>
+                            <th scope="col">Categoría</th>
+                            <th scope="col">Tipo</th>
+                            <th scope="col" class="amount-column">Monto</th>
+                            <th scope="col"><span class="visually-hidden">Acciones</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var transaccion in Resultado.Items)
+                        {
+                            <tr @key="transaccion.Id">
+                                <td class="date-cell">@transaccion.Fecha.ToString("dd MMM yyyy", Cultura)</td>
+                                <td class="description-cell">@transaccion.Descripcion</td>
+                                <td><span class="category-label">@transaccion.Categoria.Nombre</span></td>
+                                <td>
+                                    <span class="type-label @(transaccion.Tipo == TipoTransaccion.Ingreso ? "type-income" : "type-expense")">
+                                        <span class="type-dot"></span>@NombreTipo(transaccion.Tipo)
+                                    </span>
+                                </td>
+                                <td class="amount-cell @(transaccion.Tipo == TipoTransaccion.Ingreso ? "amount-income" : "amount-expense")">
+                                    @(transaccion.Tipo == TipoTransaccion.Ingreso ? "+" : "−")@transaccion.Monto.ToString("C2", Cultura)
+                                </td>
+                                <td class="actions-cell">
+                                    <button class="icon-button" type="button" title="Editar transacción" aria-label="Editar @transaccion.Descripcion" @onclick="() => AbrirEdicion(transaccion)">✎</button>
+                                    <button class="icon-button icon-danger" type="button" title="Eliminar transacción" aria-label="Eliminar @transaccion.Descripcion" @onclick="() => SolicitarEliminacion(transaccion)">×</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        @if (Resultado.Total > Filtro.ElementosPorPagina)
+        {
+            <nav class="pagination" aria-label="Paginación de transacciones">
+                <span class="pagination-summary">Mostrando @PrimerRegistro–@UltimoRegistro de @Resultado.Total</span>
+                <div class="pagination-actions">
+                    <button class="page-button" type="button" disabled="@(Filtro.Pagina <= 1 || Cargando)" @onclick="PaginaAnterior" aria-label="Página anterior">←</button>
+                    <span class="page-indicator">@Filtro.Pagina <span>/</span> @TotalPaginas</span>
+                    <button class="page-button" type="button" disabled="@(Filtro.Pagina >= TotalPaginas || Cargando)" @onclick="PaginaSiguiente" aria-label="Página siguiente">→</button>
+                </div>
+            </nav>
+        }
+    </section>
+</section>
+
+@if (FormularioAbierto)
+{
+    <div class="dialog-backdrop" @onclick="CerrarFormulario">
+        <section class="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="dialog-title" @onclick:stopPropagation="true">
+            <header class="dialog-header">
+                <div>
+                    <p class="eyebrow">@(Modelo.Id == 0 ? "NUEVO MOVIMIENTO" : "ACTUALIZAR REGISTRO")</p>
+                    <h2 id="dialog-title">@(Modelo.Id == 0 ? "Registrar transacción" : "Editar transacción")</h2>
+                </div>
+                <button class="icon-button dialog-close" type="button" aria-label="Cerrar" @onclick="CerrarFormulario">×</button>
+            </header>
+
+            <EditForm Model="Modelo" OnValidSubmit="Guardar">
+                <DataAnnotationsValidator />
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="tipo">Tipo de movimiento</label>
+                        <InputSelect id="tipo" class="control" @bind-Value="Modelo.Tipo" @bind-Value:after="ActualizarCategoriasFormulario">
+                            <option value="@TipoTransaccion.Ingreso">Ingreso</option>
+                            <option value="@TipoTransaccion.Egreso">Egreso</option>
+                        </InputSelect>
+                    </div>
+                    <div class="form-field">
+                        <label for="fecha">Fecha</label>
+                        <InputDate id="fecha" class="control" @bind-Value="Modelo.Fecha" />
+                        <ValidationMessage For="() => Modelo.Fecha" />
+                    </div>
+                    <div class="form-field">
+                        <label for="monto">Monto (USD)</label>
+                        <InputNumber id="monto" class="control" @bind-Value="Modelo.Monto" step="0.01" min="0.01" placeholder="0.00" />
+                        <ValidationMessage For="() => Modelo.Monto" />
+                    </div>
+                    <div class="form-field">
+                        <label for="categoria">Categoría</label>
+                        <InputSelect id="categoria" class="control" @bind-Value="Modelo.CategoriaId">
+                            <option value="">Selecciona una categoría</option>
+                            @foreach (var categoria in CategoriasFormulario)
+                            {
+                                <option value="@categoria.Id">@categoria.Nombre</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="() => Modelo.CategoriaId" />
+                    </div>
+                    <div class="form-field form-field-wide">
+                        <label for="descripcion">Descripción</label>
+                        <InputText id="descripcion" class="control" @bind-Value="Modelo.Descripcion" maxlength="250" placeholder="Ej. Pago de servicios" />
+                        <ValidationMessage For="() => Modelo.Descripcion" />
+                    </div>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(ErrorFormulario))
+                {
+                    <div class="notice notice-error form-error" role="alert">@ErrorFormulario</div>
+                }
+                <footer class="dialog-actions">
+                    <button class="secondary-button" type="button" @onclick="CerrarFormulario" disabled="@Guardando">Cancelar</button>
+                    <button class="primary-button" type="submit" disabled="@Guardando">
+                        @(Guardando ? "Guardando…" : Modelo.Id == 0 ? "Guardar transacción" : "Guardar cambios")
+                    </button>
+                </footer>
+            </EditForm>
+        </section>
+    </div>
+}
+
+@if (TransaccionAEliminar is not null)
+{
+    <div class="dialog-backdrop" @onclick="CancelarEliminacion">
+        <section class="dialog-panel confirm-panel" role="alertdialog" aria-modal="true" aria-labelledby="delete-title" @onclick:stopPropagation="true">
+            <span class="confirm-symbol" aria-hidden="true">!</span>
+            <h2 id="delete-title">¿Eliminar este movimiento?</h2>
+            <p><strong>@TransaccionAEliminar.Descripcion</strong> por @TransaccionAEliminar.Monto.ToString("C2", Cultura) se eliminará de forma permanente.</p>
+            @if (!string.IsNullOrWhiteSpace(ErrorFormulario))
+            {
+                <div class="notice notice-error" role="alert">@ErrorFormulario</div>
+            }
+            <footer class="dialog-actions">
+                <button class="secondary-button" type="button" @onclick="CancelarEliminacion" disabled="@Guardando">Conservar</button>
+                <button class="danger-button" type="button" @onclick="Eliminar" disabled="@Guardando">@(Guardando ? "Eliminando…" : "Sí, eliminar")</button>
+            </footer>
+        </section>
+    </div>
+}
+
+@code {
+    private static readonly CultureInfo Cultura = CultureInfo.GetCultureInfo("en-US");
+    private readonly FiltroTransacciones Filtro = new() { ElementosPorPagina = 10 };
+    private ResultadoPaginaTransacciones Resultado = new([], 0);
+    private IReadOnlyList<Categoria> Categorias = [];
+    private IReadOnlyList<Categoria> CategoriasFormulario = [];
+    private TransaccionFormModel Modelo = new();
+    private Transaccion? TransaccionAEliminar;
+    private bool FormularioAbierto;
+    private bool Cargando = true;
+    private bool Guardando;
+    private string? ErrorCarga;
+    private string? ErrorFormulario;
+
+    private int TotalPaginas => Math.Max(1, (int)Math.Ceiling(Resultado.Total / (double)Filtro.ElementosPorPagina));
+    private int PrimerRegistro => Resultado.Total == 0 ? 0 : (Filtro.Pagina - 1) * Filtro.ElementosPorPagina + 1;
+    private int UltimoRegistro => Math.Min(Filtro.Pagina * Filtro.ElementosPorPagina, Resultado.Total);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Categorias = await TransaccionesService.ListarCategoriasAsync();
+        await CargarTransacciones();
+    }
+
+    private async Task CargarTransacciones()
+    {
+        Cargando = true;
+        ErrorCarga = null;
+        try
+        {
+            Resultado = await TransaccionesService.ListarAsync(Filtro);
+            if (Filtro.Pagina > TotalPaginas)
+            {
+                Filtro.Pagina = TotalPaginas;
+                Resultado = await TransaccionesService.ListarAsync(Filtro);
+            }
+        }
+        catch
+        {
+            ErrorCarga = "No se pudieron cargar las transacciones. Intenta actualizar la página.";
+        }
+        finally
+        {
+            Cargando = false;
+        }
+    }
+
+    private async Task AplicarFiltros()
+    {
+        Filtro.Pagina = 1;
+        await CargarTransacciones();
+    }
+
+    private async Task LimpiarFiltros()
+    {
+        Filtro.FechaDesde = null;
+        Filtro.FechaHasta = null;
+        Filtro.Tipo = null;
+        Filtro.CategoriaId = null;
+        Filtro.Pagina = 1;
+        await CargarTransacciones();
+    }
+
+    private async Task PaginaAnterior()
+    {
+        if (Filtro.Pagina > 1)
+        {
+            Filtro.Pagina--;
+            await CargarTransacciones();
+        }
+    }
+
+    private async Task PaginaSiguiente()
+    {
+        if (Filtro.Pagina < TotalPaginas)
+        {
+            Filtro.Pagina++;
+            await CargarTransacciones();
+        }
+    }
+
+    private void AbrirNueva()
+    {
+        Modelo = new TransaccionFormModel();
+        ErrorFormulario = null;
+        FormularioAbierto = true;
+        ActualizarCategoriasFormulario();
+    }
+
+    private void AbrirEdicion(Transaccion transaccion)
+    {
+        Modelo = new TransaccionFormModel
+        {
+            Id = transaccion.Id,
+            Fecha = transaccion.Fecha,
+            Monto = transaccion.Monto,
+            Tipo = transaccion.Tipo,
+            CategoriaId = transaccion.CategoriaId,
+            Descripcion = transaccion.Descripcion
+        };
+        ErrorFormulario = null;
+        FormularioAbierto = true;
+        ActualizarCategoriasFormulario();
+    }
+
+    private void ActualizarCategoriasFormulario()
+    {
+        CategoriasFormulario = Categorias.Where(categoria => categoria.Tipo == Modelo.Tipo).ToArray();
+        if (Modelo.CategoriaId.HasValue && CategoriasFormulario.All(categoria => categoria.Id != Modelo.CategoriaId))
+        {
+            Modelo.CategoriaId = null;
+        }
+    }
+
+    private async Task Guardar()
+    {
+        Guardando = true;
+        ErrorFormulario = null;
+        try
+        {
+            var esNuevo = Modelo.Id == 0;
+            await TransaccionesService.GuardarAsync(Modelo);
+            FormularioAbierto = false;
+            if (esNuevo)
+            {
+                Filtro.Pagina = 1;
+            }
+
+            await CargarTransacciones();
+        }
+        catch (Exception)
+        {
+            ErrorFormulario = "No se pudo guardar la transacción. Revisa los datos e intenta de nuevo.";
+        }
+        finally
+        {
+            Guardando = false;
+        }
+    }
+
+    private void SolicitarEliminacion(Transaccion transaccion)
+    {
+        TransaccionAEliminar = transaccion;
+        ErrorFormulario = null;
+    }
+
+    private async Task Eliminar()
+    {
+        if (TransaccionAEliminar is null)
+        {
+            return;
+        }
+
+        Guardando = true;
+        ErrorFormulario = null;
+        try
+        {
+            await TransaccionesService.EliminarAsync(TransaccionAEliminar.Id);
+            TransaccionAEliminar = null;
+            await CargarTransacciones();
+        }
+        catch
+        {
+            ErrorFormulario = "No se pudo eliminar la transacción. Intenta de nuevo.";
+        }
+        finally
+        {
+            Guardando = false;
+        }
+    }
+
+    private void CerrarFormulario()
+    {
+        if (!Guardando)
+        {
+            FormularioAbierto = false;
+        }
+    }
+
+    private void CancelarEliminacion()
+    {
+        if (!Guardando)
+        {
+            TransaccionAEliminar = null;
+            ErrorFormulario = null;
+        }
+    }
+
+    private static string NombreTipo(TipoTransaccion tipo) => tipo == TipoTransaccion.Ingreso ? "Ingreso" : "Egreso";
+}

@@ -1,0 +1,471 @@
+﻿@page "/"
+@inject IDashboardService DashboardService
+
+<PageTitle>Dashboard financiero | Finanzas</PageTitle>
+
+<section class="dashboard-page">
+	<header class="dashboard-heading">
+		<div>
+			<p class="eyebrow">RESUMEN FINANCIERO</p>
+			<h1>Ingresos, egresos y balance</h1>
+			<p class="dashboard-description">Tus indicadores financieros, con el período siempre a la vista.</p>
+		</div>
+		<a class="dashboard-action" href="/transacciones">
+			<span aria-hidden="true">⇄</span>
+			Ver transacciones
+		</a>
+	</header>
+
+	<section class="period-toolbar" aria-label="Período de los indicadores">
+		<div class="period-control">
+			<label for="periodo-dashboard">Período</label>
+			<InputSelect id="periodo-dashboard" class="control" @bind-Value="Periodo" @bind-Value:after="CambiarPeriodo">
+				<option value="@PeriodoDashboard.MesActual">Este mes</option>
+				<option value="@PeriodoDashboard.TrimestreActual">Este trimestre</option>
+				<option value="@PeriodoDashboard.AnioActual">Este año</option>
+				<option value="@PeriodoDashboard.Personalizado">Personalizado</option>
+			</InputSelect>
+		</div>
+		@if (Periodo == PeriodoDashboard.Personalizado)
+		{
+			<div class="period-control date-control">
+				<label for="periodo-desde">Desde</label>
+				<InputDate id="periodo-desde" class="control" @bind-Value="FechaPersonalizadaDesde" />
+			</div>
+			<div class="period-control date-control">
+				<label for="periodo-hasta">Hasta</label>
+				<InputDate id="periodo-hasta" class="control" @bind-Value="FechaPersonalizadaHasta" />
+			</div>
+			<button class="apply-period" type="button" @onclick="AplicarPeriodoPersonalizado" disabled="@Cargando">Aplicar</button>
+		}
+		<div class="selected-period" aria-live="polite">
+			@if (Resumen is not null)
+			{
+				<span class="period-indicator"></span>
+				<span>@Resumen.FechaDesde.ToString("dd MMM yyyy", CulturaFechas) – @Resumen.FechaHasta.ToString("dd MMM yyyy", CulturaFechas)</span>
+			}
+		</div>
+	</section>
+
+	@if (!string.IsNullOrWhiteSpace(Error))
+	{
+		<div class="dashboard-notice error-notice" role="alert">@Error</div>
+	}
+	else if (Resumen is null && Cargando)
+	{
+		<div class="dashboard-loading" role="status">Calculando indicadores…</div>
+	}
+	else if (Resumen is not null && Graficos is not null)
+	{
+		@if (!Resumen.ComparacionDisponible)
+		{
+			<div class="dashboard-notice comparison-notice" role="status">
+				<span class="notice-mark" aria-hidden="true">i</span>
+				<span>No existen datos del período anterior</span>
+			</div>
+		}
+
+		<section class="kpi-grid" aria-label="Indicadores clave">
+			<article class="kpi-card income-card">
+				<div class="kpi-card-heading">
+					<span class="kpi-icon" aria-hidden="true">↗</span>
+					<span class="kpi-period">PERÍODO</span>
+				</div>
+				<p class="kpi-label">Total de ingresos</p>
+				<p class="kpi-value">@Resumen.TotalIngresos.ToString("C2", CulturaMoneda)</p>
+				@MostrarComparativo(Resumen.ComparativoIngresos)
+			</article>
+
+			<article class="kpi-card expense-card">
+				<div class="kpi-card-heading">
+					<span class="kpi-icon" aria-hidden="true">↘</span>
+					<span class="kpi-period">PERÍODO</span>
+				</div>
+				<p class="kpi-label">Total de egresos</p>
+				<p class="kpi-value">@Resumen.TotalEgresos.ToString("C2", CulturaMoneda)</p>
+				@MostrarComparativo(Resumen.ComparativoEgresos)
+			</article>
+
+			<article class="kpi-card balance-card">
+				<div class="kpi-card-heading">
+					<span class="kpi-icon" aria-hidden="true">±</span>
+					<span class="kpi-period">PERÍODO</span>
+				</div>
+				<p class="kpi-label">Utilidad / balance neto</p>
+				<p class="kpi-value">@Resumen.BalanceNeto.ToString("C2", CulturaMoneda)</p>
+				@MostrarComparativo(Resumen.ComparativoBalance)
+			</article>
+
+			<article class="kpi-card margin-card">
+				<div class="kpi-card-heading">
+					<span class="kpi-icon" aria-hidden="true">%</span>
+					<span class="kpi-period">PERÍODO</span>
+				</div>
+				<p class="kpi-label">Margen de utilidad</p>
+				<p class="kpi-value">@(Resumen.MargenUtilidad.HasValue ? $"{Resumen.MargenUtilidad.Value.ToString("N2", CulturaMoneda)}%" : "—")</p>
+				@if (!Resumen.MargenUtilidad.HasValue)
+				{
+					<p class="kpi-comparison comparison-unavailable">No calculable sin ingresos</p>
+				}
+				else
+				{
+					@MostrarComparativo(Resumen.ComparativoMargen)
+				}
+			</article>
+		</section>
+
+		<p class="comparison-caption">
+			@if (Resumen.ComparacionDisponible)
+			{
+				<span>Variación frente a @Resumen.PeriodoAnteriorDesde.ToString("dd MMM", CulturaFechas) – @Resumen.PeriodoAnteriorHasta.ToString("dd MMM yyyy", CulturaFechas)</span>
+			}
+			else
+			{
+				<span>La comparación se mostrará cuando haya ingresos en el período anterior.</span>
+			}
+			@if (Cargando)
+			{
+				<span class="refreshing-label">Actualizando…</span>
+			}
+		</p>
+
+		<section class="charts-grid" aria-label="Gráficos financieros">
+			<article class="chart-panel monthly-chart">
+				<header class="chart-heading">
+					<div>
+						<p class="eyebrow">TENDENCIA</p>
+						<h2>Ingresos vs. egresos</h2>
+					</div>
+					<div class="chart-legend" aria-label="Leyenda">
+						<span><i class="legend-swatch swatch-income"></i>Ingresos</span>
+						<span><i class="legend-swatch swatch-expense"></i>Egresos</span>
+					</div>
+				</header>
+				@if (!Graficos.TieneMovimientos)
+				{
+					<div class="chart-empty">No hay movimientos en este período.</div>
+				}
+				else
+				{
+					<div class="chart-scroll" role="region" aria-label="Barras mensuales, desplazable horizontalmente">
+						<div class="monthly-plot" style="width: @(AnchoMensualSvg)px">
+							<div class="bar-axis-labels" aria-hidden="true">
+							@for (var tick = 0; tick <= 3; tick++)
+							{
+								var valorTick = MaximoMensual * (3 - tick) / 3;
+								var yTick = 22 + tick * 62;
+								<span style="top: @(yTick - 6)px">@FormatoEje(valorTick)</span>
+							}
+							</div>
+							<svg class="monthly-svg" viewBox="0 0 @AnchoMensualSvg 270" role="img" aria-labelledby="monthly-title monthly-description">
+								<title id="monthly-title">Ingresos y egresos por mes</title>
+								<desc id="monthly-description">Comparación de los totales de ingresos y egresos para cada mes del período seleccionado.</desc>
+								@for (var tick = 0; tick <= 3; tick++)
+								{
+									var yTick = 22 + tick * 62;
+								<line x1="56" y1="@yTick" x2="@(AnchoMensualSvg - 12)" y2="@yTick" class="chart-gridline" />
+							}
+							@for (var index = 0; index < Graficos.IngresosEgresosPorMes.Count; index++)
+							{
+								var barra = Graficos.IngresosEgresosPorMes[index];
+								var anchoBarra = AnchoBarraMensual;
+								var xIngresos = XBarraMensual(index, false);
+								var xEgresos = XBarraMensual(index, true);
+								var altoIngresos = AltoBarra(barra.Ingresos);
+								var altoEgresos = AltoBarra(barra.Egresos);
+								<rect x="@xIngresos" y="@(208 - altoIngresos)" width="@anchoBarra" height="@altoIngresos" rx="2" class="bar-income">
+									<title>@NombreMes(barra.Mes) @barra.Anio: ingresos @FormatoMoneda(barra.Ingresos)</title>
+								</rect>
+								<rect x="@xEgresos" y="@(208 - altoEgresos)" width="@anchoBarra" height="@altoEgresos" rx="2" class="bar-expense">
+									<title>@NombreMes(barra.Mes) @barra.Anio: egresos @FormatoMoneda(barra.Egresos)</title>
+								</rect>
+							}
+							</svg>
+							<div class="month-axis-labels" style="grid-template-columns: repeat(@Graficos.IngresosEgresosPorMes.Count, minmax(0, 1fr))">
+								@foreach (var barra in Graficos.IngresosEgresosPorMes)
+								{
+									<span>@EtiquetaMes(barra)</span>
+								}
+							</div>
+						</div>
+					</div>
+				}
+			</article>
+
+			<article class="chart-panel cashflow-chart">
+				<header class="chart-heading">
+					<div>
+						<p class="eyebrow">ACUMULADO DEL PERÍODO</p>
+						<h2>Flujo de caja acumulado</h2>
+					</div>
+					<span class="chart-unit">USD</span>
+				</header>
+				@if (!Graficos.TieneMovimientos)
+				{
+					<div class="chart-empty">No hay movimientos para calcular el acumulado.</div>
+				}
+				else
+				{
+					<svg class="cashflow-svg" viewBox="0 0 700 270" role="img" aria-labelledby="cashflow-title cashflow-description">
+						<title id="cashflow-title">Flujo de caja acumulado</title>
+						<desc id="cashflow-description">Balance neto acumulado de los movimientos del período, partiendo de cero.</desc>
+						<line x1="45" y1="22" x2="688" y2="22" class="chart-gridline" />
+						<line x1="45" y1="126" x2="688" y2="126" class="chart-gridline" />
+						<line x1="45" y1="230" x2="688" y2="230" class="chart-gridline" />
+						<line x1="45" y1="@YFlujo(0)" x2="688" y2="@YFlujo(0)" class="zero-line" />
+						<polyline points="@PuntosFlujo" class="cashflow-line" />
+						<circle cx="@XFlujo(Graficos.FlujoCajaAcumulado[^1].Fecha)" cy="@YFlujo(Graficos.FlujoCajaAcumulado[^1].BalanceAcumulado)" r="4" class="cashflow-endpoint">
+							<title>Balance acumulado al @Graficos.FlujoCajaAcumulado[^1].Fecha.ToString("dd MMM yyyy", CulturaFechas): @FormatoMoneda(Graficos.FlujoCajaAcumulado[^1].BalanceAcumulado)</title>
+						</circle>
+					</svg>
+					<div class="cashflow-axis-labels"><span>@Resumen.FechaDesde.ToString("dd MMM", CulturaFechas)</span><span>@Resumen.FechaHasta.ToString("dd MMM yyyy", CulturaFechas)</span></div>
+				}
+				<p class="chart-footnote">Acumulado neto de los movimientos del rango; no representa saldo bancario inicial.</p>
+			</article>
+
+			<article class="chart-panel category-chart">
+				<header class="chart-heading">
+					<div>
+						<p class="eyebrow">COMPOSICIÓN</p>
+						<h2>Egresos por categoría</h2>
+					</div>
+				</header>
+				@if (Graficos.EgresosPorCategoria.Count == 0)
+				{
+					<div class="chart-empty">No hay egresos en este período.</div>
+				}
+				else
+				{
+					<div class="donut-layout">
+						<div class="donut-chart" role="img" aria-label="Distribución de egresos por categoría: @string.Join(", ", Graficos.EgresosPorCategoria.Select(item => $"{item.Categoria}, {item.Total.ToString("C2", CulturaMoneda)}"))" style="background: @GradienteDona">
+							<div class="donut-hole">
+								<span>Total egresos</span>
+								<strong>@FormatoMoneda(Graficos.EgresosPorCategoria.Sum(item => item.Total))</strong>
+							</div>
+						</div>
+						<ul class="category-legend">
+							@for (var index = 0; index < Graficos.EgresosPorCategoria.Count; index++)
+							{
+								var categoria = Graficos.EgresosPorCategoria[index];
+								<li>
+									<span class="category-color" style="background-color: @ColorCategoria(index)"></span>
+									<span class="category-name" title="@categoria.Categoria">@categoria.Categoria</span>
+									<span class="category-total">@FormatoMoneda(categoria.Total)</span>
+									<span class="category-percent">@PorcentajeCategoria(categoria.Total)%</span>
+								</li>
+							}
+						</ul>
+					</div>
+				}
+			</article>
+		</section>
+	}
+</section>
+
+@code {
+	private static readonly CultureInfo CulturaMoneda = CultureInfo.GetCultureInfo("en-US");
+	private static readonly CultureInfo CulturaFechas = CultureInfo.GetCultureInfo("es-ES");
+
+	private PeriodoDashboard Periodo = PeriodoDashboard.MesActual;
+	private DateOnly? FechaPersonalizadaDesde;
+	private DateOnly? FechaPersonalizadaHasta;
+	private ResumenKpis? Resumen;
+	private GraficosDashboard? Graficos;
+	private bool Cargando;
+	private string? Error;
+
+	protected override async Task OnInitializedAsync()
+	{
+		var hoy = DateOnly.FromDateTime(DateTime.Today);
+		FechaPersonalizadaDesde = new DateOnly(hoy.Year, hoy.Month, 1);
+		FechaPersonalizadaHasta = hoy;
+		await CargarPeriodoActual();
+	}
+
+	private async Task CambiarPeriodo()
+	{
+		Error = null;
+		if (Periodo == PeriodoDashboard.Personalizado)
+		{
+			return;
+		}
+
+		await CargarPeriodoActual();
+	}
+
+	private async Task AplicarPeriodoPersonalizado()
+	{
+		if (!FechaPersonalizadaDesde.HasValue || !FechaPersonalizadaHasta.HasValue)
+		{
+			Error = "Selecciona ambas fechas para consultar el período.";
+			return;
+		}
+
+		if (FechaPersonalizadaDesde > FechaPersonalizadaHasta)
+		{
+			Error = "La fecha inicial no puede ser posterior a la fecha final.";
+			return;
+		}
+
+		await CargarResumen(FechaPersonalizadaDesde.Value, FechaPersonalizadaHasta.Value);
+	}
+
+	private async Task CargarPeriodoActual()
+	{
+		var hoy = DateOnly.FromDateTime(DateTime.Today);
+		var inicio = Periodo switch
+		{
+			PeriodoDashboard.TrimestreActual => new DateOnly(hoy.Year, ((hoy.Month - 1) / 3) * 3 + 1, 1),
+			PeriodoDashboard.AnioActual => new DateOnly(hoy.Year, 1, 1),
+			_ => new DateOnly(hoy.Year, hoy.Month, 1)
+		};
+
+		await CargarResumen(inicio, hoy);
+	}
+
+	private async Task CargarResumen(DateOnly desde, DateOnly hasta)
+	{
+		Cargando = true;
+		Error = null;
+		try
+		{
+			var kpisTask = DashboardService.ObtenerKpisAsync(desde, hasta);
+			var graficosTask = DashboardService.ObtenerGraficosAsync(desde, hasta);
+			await Task.WhenAll(kpisTask, graficosTask);
+			Resumen = await kpisTask;
+			Graficos = await graficosTask;
+		}
+		catch
+		{
+			Error = "No se pudieron calcular los indicadores. Intenta actualizar la página.";
+		}
+		finally
+		{
+			Cargando = false;
+		}
+	}
+
+	private decimal MaximoMensual => Math.Max(1, Graficos?.IngresosEgresosPorMes
+		.SelectMany(item => new[] { item.Ingresos, item.Egresos })
+		.DefaultIfEmpty(0)
+		.Max() ?? 1);
+
+	private double AnchoMensualSvg => Math.Max(720, (Graficos?.IngresosEgresosPorMes.Count ?? 1) * 58 + 68);
+
+	private double AnchoBarraMensual => Math.Min(18, (AnchoMensualSvg - 68) / Math.Max(1, Graficos?.IngresosEgresosPorMes.Count ?? 1) * 0.3);
+
+	private decimal MaximoFlujo => Graficos?.FlujoCajaAcumulado.Max(point => point.BalanceAcumulado) ?? 0;
+
+	private decimal MinimoFlujo => Graficos?.FlujoCajaAcumulado.Min(point => point.BalanceAcumulado) ?? 0;
+
+	private string PuntosFlujo => string.Join(" ", Graficos?.FlujoCajaAcumulado.Select(point => $"{XFlujo(point.Fecha):F1},{YFlujo(point.BalanceAcumulado):F1}") ?? []);
+
+	private string GradienteDona
+	{
+		get
+		{
+			if (Graficos is null || Graficos.EgresosPorCategoria.Count == 0)
+			{
+				return "conic-gradient(#e7ece7 0% 100%)";
+			}
+
+			var total = Graficos.EgresosPorCategoria.Sum(item => item.Total);
+			var acumulado = 0m;
+			var segmentos = new List<string>();
+			for (var index = 0; index < Graficos.EgresosPorCategoria.Count; index++)
+			{
+				var inicio = acumulado / total * 100;
+				acumulado += Graficos.EgresosPorCategoria[index].Total;
+				var fin = acumulado / total * 100;
+				segmentos.Add($"{ColorCategoria(index)} {inicio:F3}% {fin:F3}%");
+			}
+
+			return $"conic-gradient(from -90deg, {string.Join(", ", segmentos)})";
+		}
+	}
+
+	private double XBarraMensual(int index, bool esEgreso)
+	{
+		var anchoGrupo = (AnchoMensualSvg - 68) / Math.Max(1, Graficos?.IngresosEgresosPorMes.Count ?? 1);
+		var espacio = (anchoGrupo - AnchoBarraMensual * 2) / 2;
+		return 56 + index * anchoGrupo + espacio + (esEgreso ? AnchoBarraMensual : 0);
+	}
+
+	private double AltoBarra(decimal valor) => (double)(valor / MaximoMensual) * 186;
+
+	private double XFlujo(DateOnly fecha)
+	{
+		if (Resumen is null || Resumen.FechaDesde == Resumen.FechaHasta)
+		{
+			return 366.5;
+		}
+
+		var proporcion = (fecha.DayNumber - Resumen.FechaDesde.DayNumber)
+			/ (double)(Resumen.FechaHasta.DayNumber - Resumen.FechaDesde.DayNumber);
+		return 45 + Math.Clamp(proporcion, 0, 1) * 643;
+	}
+
+	private double YFlujo(decimal valor)
+	{
+		var rango = MaximoFlujo - MinimoFlujo;
+		if (rango == 0)
+		{
+			return 126;
+		}
+
+		var proporcion = (double)((valor - MinimoFlujo) / rango);
+		return 22 + (1 - proporcion) * 208;
+	}
+
+	private string FormatoMoneda(decimal valor) => valor.ToString("C2", CulturaMoneda);
+
+	private string FormatoEje(decimal valor) => valor.ToString("C0", CulturaMoneda);
+
+	private static string NombreMes(int mes) => CulturaFechas.DateTimeFormat.GetMonthName(mes);
+
+	private static string EtiquetaMes(BarraMensual barra) => $"{CulturaFechas.DateTimeFormat.GetAbbreviatedMonthName(barra.Mes)} '{barra.Anio % 100:00}";
+
+	private decimal PorcentajeCategoria(decimal valor)
+	{
+		var total = Graficos?.EgresosPorCategoria.Sum(item => item.Total) ?? 0;
+		return total == 0 ? 0 : decimal.Round(valor / total * 100, 1);
+	}
+
+	private static string ColorCategoria(int index) => ColoresCategorias[index % ColoresCategorias.Length];
+
+	private static readonly string[] ColoresCategorias = ["#287a55", "#d0a044", "#c65b4d", "#64899a", "#82925f", "#a96f42", "#697b63", "#b28d4c"];
+
+	private static RenderFragment MostrarComparativo(ComparativoKpi comparativo) => builder =>
+	{
+		if (!comparativo.Calculable)
+		{
+			builder.OpenElement(0, "p");
+			builder.AddAttribute(1, "class", "kpi-comparison comparison-unavailable");
+			builder.AddContent(2, "No calculable");
+			builder.CloseElement();
+			return;
+		}
+
+		var clase = comparativo.Direccion == DireccionComparativa.Igual
+			? "trend-neutral"
+			: comparativo.Favorable ? "trend-positive" : "trend-negative";
+		var flecha = comparativo.Direccion switch
+		{
+			DireccionComparativa.Superior => "↑",
+			DireccionComparativa.Inferior => "↓",
+			_ => "→"
+		};
+		var variacion = comparativo.CambioPorcentual.HasValue
+			? $"{(comparativo.CambioPorcentual.Value > 0 ? "+" : string.Empty)}{comparativo.CambioPorcentual.Value.ToString("N1", CulturaMoneda)}%"
+			: comparativo.Direccion == DireccionComparativa.Igual ? "Sin cambio" : "Nuevo";
+
+		builder.OpenElement(0, "p");
+		builder.AddAttribute(1, "class", $"kpi-comparison {clase}");
+		builder.OpenElement(2, "span");
+		builder.AddAttribute(3, "aria-hidden", "true");
+		builder.AddContent(4, flecha);
+		builder.CloseElement();
+		builder.AddContent(5, $" {variacion} vs. anterior");
+		builder.CloseElement();
+	};
+}

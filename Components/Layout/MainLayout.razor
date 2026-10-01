@@ -1,0 +1,68 @@
+﻿@inherits LayoutComponentBase
+@inject IWebHostEnvironment HostEnvironment
+@inject IJSRuntime JSRuntime
+
+<div class="app-shell">
+    <aside class="sidebar">
+        <a class="brand" href="/" aria-label="Finanzas, inicio">
+            <span class="brand-mark">F</span>
+            <span>finanzas<span class="brand-period">.</span></span>
+        </a>
+
+        <p class="nav-caption">GESTIÓN</p>
+        <nav class="side-nav" aria-label="Navegación principal">
+            <NavLink href="/" Match="NavLinkMatch.All" class="side-link">
+                <span class="nav-symbol" aria-hidden="true">▦</span>Dashboard
+            </NavLink>
+            <NavLink href="/transacciones" class="side-link">
+                <span class="nav-symbol" aria-hidden="true">⇄</span>Transacciones
+            </NavLink>
+        </nav>
+
+        <div class="sidebar-foot">
+            <span class="status-dot"></span>
+            <span>@(HostEnvironment.IsDevelopment() ? "Datos de demostración" : "Datos guardados localmente")</span>
+        </div>
+    </aside>
+
+    <div class="workspace">
+        <header class="topbar">
+            <span class="topbar-context">CONTROL FINANCIERO</span>
+            <span class="topbar-currency"><span class="currency-dot"></span>USD <span class="currency-description">· Dólar estadounidense</span></span>
+            <button class="theme-toggle" type="button" role="switch" aria-checked="@(DarkMode ? "true" : "false")" aria-label="Modo oscuro" title="@(DarkMode ? "Cambiar a modo claro" : "Cambiar a modo oscuro")" @onclick="CambiarTema">
+                <span class="theme-toggle-track" aria-hidden="true"><span class="theme-toggle-thumb">@(DarkMode ? "☾" : "☀")</span></span>
+                <span class="theme-toggle-label">@(DarkMode ? "Oscuro" : "Claro")</span>
+            </button>
+        </header>
+        <main class="main-content">
+            @Body
+        </main>
+    </div>
+</div>
+
+@code {
+    private bool DarkMode;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        DarkMode = await JSRuntime.InvokeAsync<bool>("finanzasTheme.initialize");
+        StateHasChanged();
+    }
+
+    private async Task CambiarTema()
+    {
+        DarkMode = !DarkMode;
+        await JSRuntime.InvokeVoidAsync("finanzasTheme.apply", DarkMode);
+    }
+}
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
